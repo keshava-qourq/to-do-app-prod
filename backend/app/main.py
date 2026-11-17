@@ -6,35 +6,37 @@ is a stub that returns a typed placeholder, so the service starts, serves its
 OpenAPI document and passes its tests before a single handler is implemented.
 """
 
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import models  # noqa: F401 -- imported so the tables register before create_all
-from app.database import Base, engine
+from app import models  # noqa: F401 -- imported so the tables register on Base.metadata
+from app.config import settings
+from app.database import SessionLocal
+from app.migrate import upgrade_to_head
+from app.seed import seed_users
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """The scaffold ships no migrations, so the tables are created from the models
-    when the application starts. Replace this with Alembic before anything holds data
-    worth keeping.
+    """Apply migrations, then seed the bootstrap and smoke-test users (each only when
+    its settings are set, and only when no user with that email exists).
 
     This runs on startup and not at import, so importing the application never opens a
-    connection. A test can therefore point `get_db` at a database of its own, and a
-    deployment whose `DATABASE_URL` names a server that is not up fails where you can
-    read the error, not while pytest collects the files.
+    connection: a deployment whose `DATABASE_URL` names a server that is not up fails
+    where you can read the error, not while pytest collects the files.
     """
-    Base.metadata.create_all(bind=engine)
+    upgrade_to_head()
+    with SessionLocal() as db:
+        seed_users(db)
     yield
 
 
 app = FastAPI(
     title="To-do-app",
-    description="Simple To-Do Web App\n\nA new user can sign up with an email and password.\nThe system rejects sign-up if the email is already registered or is in an invalid format.\nA registered user can log in with their email and password.\nOnly logged-in users can see the to-do pages. Others are sent to the login page.\nA user can log out from any page.\nA user can add a task with a title. The title is required.\nA user sees only their own tasks.\nA user can edit a task\u2019s title.\nA user can mark a task as completed or not completed.\nA user can delete a task after confirming.\nA user can filter tasks by All, Active, or Completed.\nTasks stay saved after logout or a page refresh.",
+    description="Simple To-Do Web App: sign up, log in, and manage your own tasks.",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -43,11 +45,9 @@ app = FastAPI(
 # unless that origin is allowed here. In development that is the Vite dev server; when
 # deployed, the platform injects the frontend's real URL as ALLOWED_ORIGINS (comma
 # separated). Point ALLOWED_ORIGINS at the real thing and nothing else has to change.
-_dev_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
-_allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins or _dev_origins,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
