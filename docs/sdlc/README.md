@@ -18,7 +18,7 @@ A user can delete a task after confirming.
 A user can filter tasks by All, Active, or Completed.
 Tasks stay saved after logout or a page refresh.
 
-**Documentation version:** v4
+**Documentation version:** v5
 <!-- sdlc:auto:end overview -->
 
 ## Contents
@@ -29,7 +29,7 @@ Tasks stay saved after logout or a page refresh.
 | [Requirements](requirements/README.md) | v1 approved |
 | [Architecture](architecture/README.md) | 25 entries |
 | [Planning](planning/README.md) | 9 entries |
-| [Development](development/README.md) | 0 entries |
+| [Development](development/README.md) | 5 entries |
 | [Testing](testing/README.md) | 0 entries |
 | [Deployment](deployment/README.md) | 1 entry |
 | [Maintenance](maintenance/README.md) | 0 entries |
@@ -38,12 +38,12 @@ Tasks stay saved after logout or a page refresh.
 | [Decisions (ADRs)](architecture/adr/README.md) | 4 decisions |
 | [Sprint plan](development/sprint-plan.md) | 4 sprints |
 | [Developer guide](development/developer-guide.md) | generated |
-| [API reference](development/api-reference.md) | 1 route |
+| [API reference](development/api-reference.md) | 4 routes |
 | [Test report](testing/test-report.md) | not run yet |
-| [Tests](testing/test-cases.md) | 0 tests |
+| [Tests](testing/test-cases.md) | 68 tests |
 | [Deployment guide](deployment/deployment-guide.md) | deployed |
 | [Runbook](deployment/runbook.md) | deployed |
 | [Release notes](deployment/release-notes.md) | 1 release |
 | [Traceability matrix](traceability-matrix.md) | 20 requirements |
-| [Changelog](CHANGELOG.md) | 4 versions |
+| [Changelog](CHANGELOG.md) | 5 versions |
 <!-- sdlc:auto:end contents -->

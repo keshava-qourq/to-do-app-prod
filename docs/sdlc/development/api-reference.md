@@ -5,7 +5,10 @@
 <!-- sdlc:auto:start endpoints -->
 | Method | Path | Handler | Source | Summary |
 |---|---|---|---|---|
-| GET | /health | health | `backend/app/main.py:57` | Liveness probe, and the only route here that is not a stub. |
+| POST | /auth/login | login | `backend/app/routers/auth.py:23` | — |
+| POST | /auth/signup | signup | `backend/app/routers/auth.py:46` | — |
+| GET | /health | health | `backend/app/main.py:67` | Liveness probe. |
+| GET | /tasks | list_tasks | `backend/app/routers/tasks.py:17` | — |
 <!-- sdlc:auto:end endpoints -->
 
 <!-- sdlc:auto:start drift -->
@@ -13,14 +16,11 @@
 
 - DELETE /tasks/{id}
 - GET /auth/me
-- GET /tasks
 - PATCH /tasks/{id}
-- POST /auth/login
 - POST /auth/logout
-- POST /auth/signup
 - POST /tasks
 <!-- sdlc:auto:end drift -->
 
 <!-- sdlc:auto:start source -->
-Generated from commit `77df320`
+Generated from commit `436ee33`
 <!-- sdlc:auto:end source -->
