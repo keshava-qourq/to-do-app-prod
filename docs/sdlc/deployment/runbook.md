@@ -3,7 +3,8 @@
 > Maintained by QuorQ AI SDLC. Text between `sdlc:auto` markers is regenerated; anything outside them is yours and is kept.
 
 <!-- sdlc:auto:start health -->
-_Not deployed yet._
+- Backend: `https://44-229-176-71.sslip.io/apps/6cbdbbdaf276/health`
+- Frontend: https://p6cbdbbdaf276.d3j61xaup4zgrx.amplifyapp.com
 <!-- sdlc:auto:end health -->
 
 <!-- sdlc:auto:start deploy -->
@@ -12,6 +13,8 @@ Push to `main` to run `.github/workflows/deploy.yml`, or start a deployment from
 
 <!-- sdlc:auto:start rollback -->
 Redeploy the last good version from the platform's Deployment tab, or revert the offending commit on `main` — the workflow redeploys.
+
+**Last live version:** e16062916c2d (`e160629`)
 <!-- sdlc:auto:end rollback -->
 
 <!-- sdlc:auto:start recent-failures -->
