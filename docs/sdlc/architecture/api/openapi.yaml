@@ -2,6 +2,213 @@
 openapi: 3.1.0
 info:
   title: To-do-app
-  version: architecture-v0
+  version: architecture-v2
   description: Designed API from the approved architecture (not extracted from code).
-paths: {}
+paths:
+  /auth/login:
+    post:
+      summary: Sign in with email and password; email is case-insensitive. Any failure
+        returns the identical generic 'email or password
+      description: Sign in with email and password; email is case-insensitive. Any
+        failure returns the identical generic 'email or password is incorrect'.
+      operationId: post_auth_login
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: '200 { token, user: { id, email } } or 401 { message: ''email
+            or password is incorrect'' }'
+  /auth/logout:
+    post:
+      summary: 'end the current session immediately so it token can no longer be used '
+      description: 'end the current session immediately so it token can no longer
+        be used '
+      operationId: post_auth_logout
+      parameters: []
+      responses:
+        '200':
+          description: Successful response
+      security:
+      - bearerAuth: []
+  /auth/me:
+    get:
+      summary: Return the signed-in user; the SPA uses it to redirect a signed-in
+        visitor away from login/sign-up and a signed-out visi
+      description: Return the signed-in user; the SPA uses it to redirect a signed-in
+        visitor away from login/sign-up and a signed-out visitor to login.
+      operationId: get_auth_me
+      parameters: []
+      responses:
+        '200':
+          description: 200 { id, email } or 401
+      security:
+      - bearerAuth: []
+  /auth/signup:
+    post:
+      summary: Create an account and sign in. Rejects an invalid email format, a blank
+        field, a password under 8 characters, and an alr
+      description: Create an account and sign in. Rejects an invalid email format,
+        a blank field, a password under 8 characters, and an already-registered email
+        (case-insensitive) with an explicit already-registered message; reports multiple
+        errors together.
+      operationId: post_auth_signup
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: '201 { token, user: { id, email } } or 409 already-registered
+            or 422 validation errors'
+  /tasks:
+    get:
+      summary: List the signed-in user's own tasks newest-first on one page, optionally
+        filtered. Filtering is a query param, never sto
+      description: List the signed-in user's own tasks newest-first on one page, optionally
+        filtered. Filtering is a query param, never stored server-side.
+      operationId: get_tasks
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, title, completed, created_at } ]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a task for the signed-in user. Title is trimmed, required (rejected
+        if empty after trim), capped at 255 character
+      description: Create a task for the signed-in user. Title is trimmed, required
+        (rejected if empty after trim), capped at 255 characters; new task starts
+        not completed.
+      operationId: post_tasks
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ title }'
+      responses:
+        '200':
+          description: 201 { id, title, completed, created_at } or 422 title errors
+      security:
+      - bearerAuth: []
+  /tasks/{id}:
+    patch:
+      summary: 'Edit the title and/or toggle completed for a task the user owns. Title
+        rules re-applied. Returns 404 if the task is not '
+      description: Edit the title and/or toggle completed for a task the user owns.
+        Title rules re-applied. Returns 404 if the task is not owned by the session
+        user.
+      operationId: patch_tasks_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ title?, completed? }'
+      responses:
+        '200':
+          description: 200 { id, title, completed, created_at } or 404 or 422
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Permanently delete a task the user owns (hard delete, no undo). Returns
+        404 if not owned by the session user. The confir
+      description: Permanently delete a task the user owns (hard delete, no undo).
+        Returns 404 if not owned by the session user. The confirmation prompt is handled
+        in the SPA.
+      operationId: delete_tasks_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 204 No Content or 404
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    users:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        password_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - password_hash
+      - created_at
+    sessions:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        token:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - token
+      - user_id
+      - created_at
+      - expires_at
+    tasks:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - title
+      - completed
+      - created_at

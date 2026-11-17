@@ -7,7 +7,11 @@ Pushes to `main` run `.github/workflows/deploy.yml`, which builds the API image 
 <!-- sdlc:auto:end how-it-deploys -->
 
 <!-- sdlc:auto:start environments -->
-_No environments recorded._
+| Name | Service | Runtime | Scaling | Environment |
+|---|---|---|---|---|
+| SPA Host | React 19 static build served from S3 + CloudFront (SPA origin) | Static assets (Vite build) | CDN-distributed | dev |
+| API Service | FastAPI 0.115 container on AWS (ECS Fargate, single small task) | Python 3.12 / Uvicorn | Single task for dev; horizontally scalable | dev |
+| Database | Amazon RDS for PostgreSQL 16 | PostgreSQL 16 | Single instance, encryption at rest enabled | dev |
 <!-- sdlc:auto:end environments -->
 
 <!-- sdlc:auto:start live -->
@@ -15,5 +19,12 @@ _Not deployed yet._
 <!-- sdlc:auto:end live -->
 
 <!-- sdlc:auto:start topology -->
-_No deployment topology recorded._
+```mermaid
+graph LR
+  n_SPA_Host["SPA Host<br/>React 19 static build served from S3 + CloudFront (SPA origin)"]
+  n_API_Service["API Service<br/>FastAPI 0.115 container on AWS (ECS Fargate, single small task)"]
+  n_Database["Database<br/>Amazon RDS for PostgreSQL 16"]
+  n_SPA_Host -->|"HTTPS"| n_API_Service
+  n_API_Service -->|"TLS (PostgreSQL)"| n_Database
+```
 <!-- sdlc:auto:end topology -->
