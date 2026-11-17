@@ -5,16 +5,14 @@ import React from "react";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { ApiError, apiFetch, setSessionToken } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Check } = Icons;
 
-const REGISTERED_EMAILS = [
-  "bob@example.com",
-  "maya.okafor@example.com",
-  "jonas.lindqvist@example.com",
-  "priya.raman@example.com",
-];
+const EMAIL_FORMAT_MSG =
+  "That email address format is invalid. Check for an @ sign and a domain, like name@example.com.";
+const PASSWORD_LENGTH_MSG = "Password must be at least 8 characters long.";
+const GENERIC_MSG = "Something went wrong. Please try again.";
 
 const PREVIEW_TASKS = [
   { title: "Book dentist for the 3rd", done: false },
@@ -31,13 +29,7 @@ export default function Screen() {
   const [password, setPassword] = React.useState("");
   const [errors, setErrors] = React.useState({});
   const [status, setStatus] = React.useState("idle"); // idle | submitting | done
-  const timerRef = React.useRef(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
+  const inFlight = React.useRef(false);
 
   const canvas =
     "color-mix(in srgb, " +
@@ -62,26 +54,44 @@ export default function Screen() {
     const next = {};
     const e = email.trim();
     if (!e) next.email = "Email is required.";
-    else if (!EMAIL_PATTERN.test(e))
-      next.email =
-        "That email address format is invalid. Check for an @ sign and a domain, like name@example.com.";
-    else if (REGISTERED_EMAILS.includes(e.toLowerCase())) next.registered = true;
+    else if (!EMAIL_PATTERN.test(e)) next.email = EMAIL_FORMAT_MSG;
     if (!password) next.password = "Password is required.";
-    else if (password.length < 8) next.password = "Password must be at least 8 characters long.";
+    else if (password.length < 8) next.password = PASSWORD_LENGTH_MSG;
     return next;
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault();
-    if (locked) return;
+    if (locked || inFlight.current) return;
     const next = validate();
     setErrors(next);
     if (Object.keys(next).length > 0) return;
+    inFlight.current = true;
     setStatus("submitting");
-    timerRef.current = setTimeout(() => {
+    try {
+      const res = await apiFetch("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      setSessionToken(res.token);
       setStatus("done");
-      timerRef.current = setTimeout(() => navigate("tasks"), 600);
-    }, 700);
+      navigate("tasks");
+    } catch (err) {
+      const server = {};
+      if (err instanceof ApiError && err.status === 409) server.registered = true;
+      else if (err instanceof ApiError && err.status === 422 && Array.isArray(err.body?.detail)) {
+        for (const d of err.body.detail) {
+          const field = Array.isArray(d?.loc) ? d.loc[d.loc.length - 1] : null;
+          if (field === "email") server.email = EMAIL_FORMAT_MSG;
+          else if (field === "password") server.password = PASSWORD_LENGTH_MSG;
+        }
+      }
+      if (Object.keys(server).length === 0) server.form = GENERIC_MSG;
+      setErrors(server);
+      setStatus("idle");
+    } finally {
+      inFlight.current = false;
+    }
   }
 
   const emailInvalid = !!(errors.email || errors.registered);
@@ -341,7 +351,30 @@ export default function Screen() {
                       className="w-5 h-5 shrink-0"
                       style={{ color: errColor }}
                     />
-                    <span>This email address is already registered. Please log in instead.</span>
+                    <span>
+                      This email address is already registered. Please log in instead.{" "}
+                      <button
+                        type="button"
+                        className="su-link font-semibold"
+                        style={{ textDecoration: "underline", color: textMain }}
+                        onClick={() => navigate("login")}
+                      >
+                        Go to log in
+                      </button>
+                    </span>
+                  </p>
+                ) : errors.form ? (
+                  <p
+                    role="alert"
+                    className="su-rise flex items-start gap-3 text-sm p-4"
+                    style={{
+                      color: textMain,
+                      border: "1px solid " + errColor,
+                      borderRadius: brand.radius,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <span>{errors.form}</span>
                   </p>
                 ) : done ? (
                   <p

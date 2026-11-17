@@ -9,13 +9,17 @@ OpenAPI document and passes its tests before a single handler is implemented.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app import models  # noqa: F401 -- imported so the tables register on Base.metadata
 from app.config import settings
 from app.database import SessionLocal
 from app.migrate import upgrade_to_head
+from app.routers.auth import router as auth_router
+from app.routers.tasks import router as tasks_router
 from app.seed import seed_users
 
 
@@ -52,6 +56,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """List every error with loc, msg and type only: never echo 'input' or 'ctx', which
+    would carry the submitted password back."""
+    detail = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
+app.include_router(auth_router)
+app.include_router(tasks_router)
 
 
 @app.get("/health")

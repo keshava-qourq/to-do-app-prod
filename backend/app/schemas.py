@@ -1,20 +1,43 @@
-"""Pydantic request and response models.
+"""Pydantic request and response models."""
 
-One pair per entity in the approved data model, plus the placeholder every
-generated route returns until it has been implemented.
-"""
+from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, field_validator
 
 
-class StubResponse(BaseModel):
-    """What a generated route returns until someone implements it.
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
 
-    A stub that returns a typed body rather than raising keeps the service
-    startable and its OpenAPI document complete, so the frontend can be built
-    against the agreed shape while the handlers are still being written.
-    """
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalise_email(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
 
-    endpoint: str
-    status: str = "not_implemented"
-    detail: str = "Scaffolded from the approved API spec; no behaviour yet."
+    @field_validator("password")
+    @classmethod
+    def _check_password(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("password must not be blank")
+        if len(value) < 8:
+            raise ValueError("the password must be at least 8 characters long")
+        return value
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+
+
+class SignupResponse(BaseModel):
+    token: str
+    user: UserOut
+
+
+class TaskOut(BaseModel):
+    id: int
+    title: str
+    completed: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

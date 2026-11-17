@@ -4,54 +4,10 @@ import React from "react";
 
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
+import { ApiError, apiFetch, clearSessionToken } from "@/lib/api";
+import { useNavigate } from "@/lib/navigate";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Edit, Filter, ArrowLeft, ArrowRight } = Icons;
-
-const SEED_TASKS = [
-  {
-    id: "tsk-107",
-    title: "Book dentist appointment",
-    completed: false,
-    created_at: new Date(2026, 10, 17, 9, 12),
-  },
-  {
-    id: "tsk-106",
-    title: "Buy groceries",
-    completed: false,
-    created_at: new Date(2026, 10, 16, 18, 40),
-  },
-  {
-    id: "tsk-105",
-    title: "Send invoice to client",
-    completed: true,
-    created_at: new Date(2026, 10, 16, 11, 5),
-  },
-  {
-    id: "tsk-104",
-    title: "Call mum on Sunday",
-    completed: false,
-    created_at: new Date(2026, 10, 14, 20, 15),
-  },
-  {
-    id: "tsk-103",
-    title: "Renew car insurance before the 30th",
-    completed: false,
-    created_at: new Date(2026, 10, 12, 8, 30),
-  },
-  {
-    id: "tsk-102",
-    title: "Return library books",
-    completed: true,
-    created_at: new Date(2026, 10, 9, 17, 20),
-  },
-  {
-    id: "tsk-101",
-    title: "Plan Priya's birthday dinner",
-    completed: false,
-    created_at: new Date(2026, 10, 6, 13, 45),
-  },
-];
 
 const FILTERS = [
   { key: "all", label: "All", wf: "i-2-0-0" },
@@ -81,7 +37,9 @@ function formatAdded(task) {
 }
 
 export default function Screen() {
-  const [tasks, setTasks] = React.useState(SEED_TASKS);
+  const [tasks, setTasks] = React.useState([]);
+  const navigate = useNavigate();
+  const [loadError, setLoadError] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [filter, setFilter] = React.useState("all");
   const [draft, setDraft] = React.useState("");
@@ -99,8 +57,26 @@ export default function Screen() {
   const triggerRef = React.useRef(null);
 
   React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 650);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    apiFetch("/tasks")
+      .then((rows) => {
+        if (cancelled) return;
+        setTasks(rows.map((r) => ({ ...r, created_at: new Date(r.created_at) })));
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          clearSessionToken();
+          navigate("login");
+          return;
+        }
+        setLoadError("We could not load your tasks. Please try again.");
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   React.useEffect(() => {
@@ -354,7 +330,7 @@ export default function Screen() {
                 style={{ width: 8, height: 8, background: brand.primaryColor }}
                 aria-hidden="true"
               />
-              Saved to maya.okafor@example.com
+              Saved to your account
             </p>
           </div>
         </header>
@@ -595,7 +571,13 @@ export default function Screen() {
             </div>
           )}
 
-          {!loading && emptyAll && (
+          {!loading && loadError && (
+            <p role="alert" className="px-6 py-8 text-center">
+              {loadError}
+            </p>
+          )}
+
+          {!loading && !loadError && emptyAll && (
             <div data-wf="b-4-0" className="flex flex-col items-center px-6 py-12 text-center">
               <div
                 className="flex items-center justify-center"

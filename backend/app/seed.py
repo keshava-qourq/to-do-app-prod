@@ -5,7 +5,7 @@ settings are present and no user with that email exists (idempotent); otherwise 
 is seeded.
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -16,8 +16,8 @@ from app.security import hash_password
 def _ensure_user(db: Session, email: str, password: str) -> None:
     if not email or not password:
         return
-    # `email` is citext, so this match ignores case.
-    if db.scalar(select(User.id).where(User.email == email)) is not None:
+    email = email.strip().lower()
+    if db.scalar(select(User.id).where(func.lower(User.email) == email)) is not None:
         return
     db.add(User(email=email, password_hash=hash_password(password)))
     db.commit()
