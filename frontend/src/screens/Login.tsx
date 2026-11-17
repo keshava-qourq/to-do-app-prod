@@ -1,9 +1,10 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import React from "react";
 
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { ApiError, apiFetch, setSessionToken } from "@/lib/api";
 
 const PRODUCT = "To-do-app";
 const SCREEN = "Log in";
@@ -14,6 +15,34 @@ export default function Screen() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [status, setStatus] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const inFlight = React.useRef(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      setSessionToken(res.token);
+      navigate("tasks");
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 401
+          ? "email or password is incorrect"
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+    }
+  }
   const glass = {
     backgroundColor: "rgba(255,255,255,0.07)",
     border: "1px solid rgba(255,255,255,0.14)",
@@ -69,12 +98,12 @@ export default function Screen() {
             {status}
           </p>
         ) : (
-          <form
-            className="mt-8 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-            }}
-          >
+          <form className="mt-8 space-y-4" noValidate aria-label="Log in" onSubmit={handleSubmit}>
+            {error && (
+              <p role="alert" className="text-sm font-semibold">
+                {error}
+              </p>
+            )}
             <label htmlFor="tech-email" className="sr-only">
               Email
             </label>
@@ -104,15 +133,15 @@ export default function Screen() {
             <button
               type="submit"
               data-wf="b-4-0"
-              onClick={() => navigate("tasks")}
-              className="h-12 w-full text-sm font-bold text-white transition-transform hover:scale-[1.02]"
+              disabled={submitting}
+              className="h-12 w-full text-sm font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-60"
               style={{
                 background: `linear-gradient(90deg, ${brand.primaryColor}, ${brand.accentColor})`,
                 borderRadius: brand.radius,
                 boxShadow: glow,
               }}
             >
-              Log in
+              {submitting ? "Logging in…" : "Log in"}
             </button>
           </form>
         )}

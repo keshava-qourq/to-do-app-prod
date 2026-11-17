@@ -24,6 +24,11 @@ class SignupRequest(BaseModel):
         return value
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str
