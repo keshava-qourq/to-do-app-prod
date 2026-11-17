@@ -5,70 +5,93 @@ import React from "react";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { ApiError, apiFetch, setSessionToken } from "@/lib/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Check } = Icons;
 
-const REGISTERED_EMAILS = ['bob@example.com', 'maya.okafor@example.com', 'jonas.lindqvist@example.com', 'priya.raman@example.com'];
+const EMAIL_FORMAT_MSG =
+  "That email address format is invalid. Check for an @ sign and a domain, like name@example.com.";
+const PASSWORD_LENGTH_MSG = "Password must be at least 8 characters long.";
+const GENERIC_MSG = "Something went wrong. Please try again.";
 
 const PREVIEW_TASKS = [
-  { title: 'Book dentist for the 3rd', done: false },
-  { title: 'Send invoice to Harbor & Pine', done: false },
-  { title: 'Renew passport photos', done: true },
-  { title: 'Pick up sourdough starter', done: true },
+  { title: "Book dentist for the 3rd", done: false },
+  { title: "Send invoice to Harbor & Pine", done: false },
+  { title: "Renew passport photos", done: true },
+  { title: "Pick up sourdough starter", done: true },
 ];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Screen() {
   const navigate = useNavigate();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [errors, setErrors] = React.useState({});
-  const [status, setStatus] = React.useState('idle'); // idle | submitting | done
-  const timerRef = React.useRef(null);
+  const [status, setStatus] = React.useState("idle"); // idle | submitting | done
+  const inFlight = React.useRef(false);
 
-  React.useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
+  const canvas =
+    "color-mix(in srgb, " +
+    brand.backgroundColor +
+    " 20%, color-mix(in srgb, " +
+    brand.accentColor +
+    " 28%, black))";
+  const glass = "color-mix(in srgb, white 8%, transparent)";
+  const hairline = "1px solid color-mix(in srgb, white 14%, transparent)";
+  const textMain = "white";
+  const textSoft = "color-mix(in srgb, " + brand.neutralColor + " 70%, white)";
+  const errColor = "color-mix(in srgb, crimson 55%, white)";
+  const onNeon = "color-mix(in srgb, " + brand.backgroundColor + " 12%, black)";
+  const neonGradient =
+    "linear-gradient(120deg, " + brand.primaryColor + ", " + brand.accentColor + ")";
 
-  const canvas = 'color-mix(in srgb, ' + brand.backgroundColor + ' 20%, color-mix(in srgb, ' + brand.accentColor + ' 28%, black))';
-  const glass = 'color-mix(in srgb, white 8%, transparent)';
-  const hairline = '1px solid color-mix(in srgb, white 14%, transparent)';
-  const textMain = 'white';
-  const textSoft = 'color-mix(in srgb, ' + brand.neutralColor + ' 70%, white)';
-  const errColor = 'color-mix(in srgb, crimson 55%, white)';
-  const onNeon = 'color-mix(in srgb, ' + brand.backgroundColor + ' 12%, black)';
-  const neonGradient = 'linear-gradient(120deg, ' + brand.primaryColor + ', ' + brand.accentColor + ')';
-
-  const submitting = status === 'submitting';
-  const done = status === 'done';
+  const submitting = status === "submitting";
+  const done = status === "done";
   const locked = submitting || done;
 
   function validate() {
     const next = {};
     const e = email.trim();
-    if (!e) next.email = 'Email is required.';
-    else if (!EMAIL_PATTERN.test(e)) next.email = 'That email address format is invalid. Check for an @ sign and a domain, like name@example.com.';
-    else if (REGISTERED_EMAILS.includes(e.toLowerCase())) next.registered = true;
-    if (!password) next.password = 'Password is required.';
-    else if (password.length < 8) next.password = 'Password must be at least 8 characters long.';
+    if (!e) next.email = "Email is required.";
+    else if (!EMAIL_PATTERN.test(e)) next.email = EMAIL_FORMAT_MSG;
+    if (!password) next.password = "Password is required.";
+    else if (password.length < 8) next.password = PASSWORD_LENGTH_MSG;
     return next;
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault();
-    if (locked) return;
+    if (locked || inFlight.current) return;
     const next = validate();
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    setStatus('submitting');
-    timerRef.current = setTimeout(() => {
-      setStatus('done');
-      timerRef.current = setTimeout(() => navigate('tasks'), 600);
-    }, 700);
+    inFlight.current = true;
+    setStatus("submitting");
+    try {
+      const res = await apiFetch("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      setSessionToken(res.token);
+      setStatus("done");
+      navigate("tasks");
+    } catch (err) {
+      const server = {};
+      if (err instanceof ApiError && err.status === 409) server.registered = true;
+      else if (err instanceof ApiError && err.status === 422 && Array.isArray(err.body?.detail)) {
+        for (const d of err.body.detail) {
+          const field = Array.isArray(d?.loc) ? d.loc[d.loc.length - 1] : null;
+          if (field === "email") server.email = EMAIL_FORMAT_MSG;
+          else if (field === "password") server.password = PASSWORD_LENGTH_MSG;
+        }
+      }
+      if (Object.keys(server).length === 0) server.form = GENERIC_MSG;
+      setErrors(server);
+      setStatus("idle");
+    } finally {
+      inFlight.current = false;
+    }
   }
 
   const emailInvalid = !!(errors.email || errors.registered);
@@ -76,12 +99,12 @@ export default function Screen() {
   const remaining = Math.max(0, 8 - password.length);
 
   const inputStyle = (invalid) => ({
-    backgroundColor: 'color-mix(in srgb, white 7%, transparent)',
-    border: invalid ? '1px solid ' + errColor : hairline,
+    backgroundColor: "color-mix(in srgb, white 7%, transparent)",
+    border: invalid ? "1px solid " + errColor : hairline,
     color: textMain,
     borderRadius: brand.radius,
     minHeight: 48,
-    transition: 'border-color .2s, background-color .2s',
+    transition: "border-color .2s, background-color .2s",
   });
 
   return (
@@ -117,28 +140,74 @@ export default function Screen() {
       <div
         aria-hidden="true"
         className="absolute pointer-events-none"
-        style={{ top: -160, right: -120, width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(closest-side, color-mix(in srgb, ' + brand.accentColor + ' 45%, transparent), transparent)', filter: 'blur(40px)' }}
+        style={{
+          top: -160,
+          right: -120,
+          width: 640,
+          height: 640,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(closest-side, color-mix(in srgb, " +
+            brand.accentColor +
+            " 45%, transparent), transparent)",
+          filter: "blur(40px)",
+        }}
       />
       <div
         aria-hidden="true"
         className="absolute pointer-events-none"
-        style={{ bottom: -200, left: -160, width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(closest-side, color-mix(in srgb, ' + brand.primaryColor + ' 32%, transparent), transparent)', filter: 'blur(40px)' }}
+        style={{
+          bottom: -200,
+          left: -160,
+          width: 640,
+          height: 640,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(closest-side, color-mix(in srgb, " +
+            brand.primaryColor +
+            " 32%, transparent), transparent)",
+          filter: "blur(40px)",
+        }}
       />
 
-      <div className="relative mx-auto w-full px-4 py-8 md:px-8 md:py-12" style={{ maxWidth: 1120 }}>
+      <div
+        className="relative mx-auto w-full px-4 py-8 md:px-8 md:py-12"
+        style={{ maxWidth: 1120 }}
+      >
         <div className="grid grid-cols-12 gap-x-8 gap-y-8">
           {/* Row 1 */}
           <header className="col-span-12" data-wf="b-0-0">
-            <p className="text-sm font-semibold uppercase mb-3" style={{ color: brand.primaryColor, letterSpacing: '0.14em' }}>
+            <p
+              className="text-sm font-semibold uppercase mb-3"
+              style={{ color: brand.primaryColor, letterSpacing: "0.14em" }}
+            >
               To-do-app · free, start to finish
             </p>
-            <h1 className="font-extrabold" style={{ fontFamily: brand.fontHeading, fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', lineHeight: 1.05, letterSpacing: '-0.02em' }}>
-              Create your{' '}
-              <span style={{ backgroundImage: neonGradient, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+            <h1
+              className="font-extrabold"
+              style={{
+                fontFamily: brand.fontHeading,
+                fontSize: "clamp(2.25rem, 6vw, 3.5rem)",
+                lineHeight: 1.05,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Create your{" "}
+              <span
+                style={{
+                  backgroundImage: neonGradient,
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                }}
+              >
                 account
               </span>
             </h1>
-            <p className="mt-3 text-base" style={{ color: textSoft, maxWidth: 520, lineHeight: 1.5 }}>
+            <p
+              className="mt-3 text-base"
+              style={{ color: textSoft, maxWidth: 520, lineHeight: 1.5 }}
+            >
               One email, one password, and a private task list that is saved for you on the server.
             </p>
           </header>
@@ -154,15 +223,18 @@ export default function Screen() {
                 backgroundColor: glass,
                 border: hairline,
                 borderRadius: brand.radius,
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 24px 80px color-mix(in srgb, ' + brand.accentColor + ' 22%, transparent)',
+                backdropFilter: "blur(20px)",
+                WebkitBackdropFilter: "blur(20px)",
+                boxShadow:
+                  "0 24px 80px color-mix(in srgb, " + brand.accentColor + " 22%, transparent)",
               }}
             >
               {/* Row 2 */}
               <div data-wf="b-1-0" className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="su-email" className="text-sm font-semibold">Email</label>
+                  <label htmlFor="su-email" className="text-sm font-semibold">
+                    Email
+                  </label>
                   <input
                     id="su-email"
                     data-wf="i-1-0-0"
@@ -174,23 +246,36 @@ export default function Screen() {
                     value={email}
                     disabled={locked}
                     aria-invalid={emailInvalid}
-                    aria-describedby={errors.email ? 'su-email-error' : errors.registered ? 'su-notice' : undefined}
+                    aria-describedby={
+                      errors.email ? "su-email-error" : errors.registered ? "su-notice" : undefined
+                    }
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      if (errors.email || errors.registered) setErrors({ ...errors, email: undefined, registered: undefined });
+                      if (errors.email || errors.registered)
+                        setErrors({ ...errors, email: undefined, registered: undefined });
                     }}
                     style={inputStyle(emailInvalid)}
                   />
                   {errors.email && (
-                    <p id="su-email-error" className="su-rise flex items-start gap-2 text-sm" style={{ color: errColor, lineHeight: 1.45 }}>
-                      <Icons.AlertCircle aria-hidden="true" className="w-4 h-4 shrink-0" style={{ marginTop: 2 }} />
+                    <p
+                      id="su-email-error"
+                      className="su-rise flex items-start gap-2 text-sm"
+                      style={{ color: errColor, lineHeight: 1.45 }}
+                    >
+                      <Icons.AlertCircle
+                        aria-hidden="true"
+                        className="w-4 h-4 shrink-0"
+                        style={{ marginTop: 2 }}
+                      />
                       <span>{errors.email}</span>
                     </p>
                   )}
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="su-password" className="text-sm font-semibold">Password (at least 8 characters)</label>
+                  <label htmlFor="su-password" className="text-sm font-semibold">
+                    Password (at least 8 characters)
+                  </label>
                   <input
                     id="su-password"
                     data-wf="i-1-0-1"
@@ -202,7 +287,7 @@ export default function Screen() {
                     value={password}
                     disabled={locked}
                     aria-invalid={passwordInvalid}
-                    aria-describedby={errors.password ? 'su-password-error' : 'su-password-hint'}
+                    aria-describedby={errors.password ? "su-password-error" : "su-password-hint"}
                     onChange={(e) => {
                       setPassword(e.target.value);
                       if (errors.password) setErrors({ ...errors, password: undefined });
@@ -210,19 +295,41 @@ export default function Screen() {
                     style={inputStyle(passwordInvalid)}
                   />
                   {errors.password ? (
-                    <p id="su-password-error" className="su-rise flex items-start gap-2 text-sm" style={{ color: errColor, lineHeight: 1.45 }}>
-                      <Icons.AlertCircle aria-hidden="true" className="w-4 h-4 shrink-0" style={{ marginTop: 2 }} />
+                    <p
+                      id="su-password-error"
+                      className="su-rise flex items-start gap-2 text-sm"
+                      style={{ color: errColor, lineHeight: 1.45 }}
+                    >
+                      <Icons.AlertCircle
+                        aria-hidden="true"
+                        className="w-4 h-4 shrink-0"
+                        style={{ marginTop: 2 }}
+                      />
                       <span>{errors.password}</span>
                     </p>
                   ) : (
-                    <p id="su-password-hint" className="text-sm flex items-center justify-between gap-3" style={{ color: textSoft }}>
+                    <p
+                      id="su-password-hint"
+                      className="text-sm flex items-center justify-between gap-3"
+                      style={{ color: textSoft }}
+                    >
                       <span>Stored only as a salted hash, never as readable text.</span>
-                      <span style={{ fontVariantNumeric: 'tabular-nums', color: password.length >= 8 ? brand.primaryColor : textSoft, whiteSpace: 'nowrap' }}>
-                        {password.length >= 8 ? '8+ ✓' : password.length + ' / 8'}
+                      <span
+                        style={{
+                          fontVariantNumeric: "tabular-nums",
+                          color: password.length >= 8 ? brand.primaryColor : textSoft,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {password.length >= 8 ? "8+ ✓" : password.length + " / 8"}
                       </span>
                     </p>
                   )}
-                  <span className="sr-only" aria-live="polite">{password.length > 0 && remaining > 0 ? remaining + ' more characters needed' : ''}</span>
+                  <span className="sr-only" aria-live="polite">
+                    {password.length > 0 && remaining > 0
+                      ? remaining + " more characters needed"
+                      : ""}
+                  </span>
                 </div>
               </div>
 
@@ -231,19 +338,72 @@ export default function Screen() {
                 {errors.registered ? (
                   <p
                     className="su-rise flex items-start gap-3 text-sm p-4"
-                    style={{ color: textMain, border: '1px solid ' + errColor, backgroundColor: 'color-mix(in srgb, crimson 18%, transparent)', borderRadius: brand.radius, lineHeight: 1.5 }}
+                    style={{
+                      color: textMain,
+                      border: "1px solid " + errColor,
+                      backgroundColor: "color-mix(in srgb, crimson 18%, transparent)",
+                      borderRadius: brand.radius,
+                      lineHeight: 1.5,
+                    }}
                   >
-                    <Icons.AlertCircle aria-hidden="true" className="w-5 h-5 shrink-0" style={{ color: errColor }} />
-                    <span>This email address is already registered. Please log in instead.</span>
+                    <Icons.AlertCircle
+                      aria-hidden="true"
+                      className="w-5 h-5 shrink-0"
+                      style={{ color: errColor }}
+                    />
+                    <span>
+                      This email address is already registered. Please log in instead.{" "}
+                      <button
+                        type="button"
+                        className="su-link font-semibold"
+                        style={{ textDecoration: "underline", color: textMain }}
+                        onClick={() => navigate("login")}
+                      >
+                        Go to log in
+                      </button>
+                    </span>
+                  </p>
+                ) : errors.form ? (
+                  <p
+                    role="alert"
+                    className="su-rise flex items-start gap-3 text-sm p-4"
+                    style={{
+                      color: textMain,
+                      border: "1px solid " + errColor,
+                      borderRadius: brand.radius,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <span>{errors.form}</span>
                   </p>
                 ) : done ? (
-                  <p className="su-rise flex items-start gap-3 text-sm p-4" style={{ border: '1px solid ' + brand.primaryColor, backgroundColor: 'color-mix(in srgb, ' + brand.primaryColor + ' 14%, transparent)', borderRadius: brand.radius, lineHeight: 1.5 }}>
-                    <Icons.CheckCircle aria-hidden="true" className="w-5 h-5 shrink-0" style={{ color: brand.primaryColor }} />
+                  <p
+                    className="su-rise flex items-start gap-3 text-sm p-4"
+                    style={{
+                      border: "1px solid " + brand.primaryColor,
+                      backgroundColor:
+                        "color-mix(in srgb, " + brand.primaryColor + " 14%, transparent)",
+                      borderRadius: brand.radius,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <Icons.CheckCircle
+                      aria-hidden="true"
+                      className="w-5 h-5 shrink-0"
+                      style={{ color: brand.primaryColor }}
+                    />
                     <span>Account created. Taking you to your empty task list…</span>
                   </p>
                 ) : (
-                  <p className="flex items-start gap-3 text-sm" style={{ color: textSoft, lineHeight: 1.5 }}>
-                    <Icons.CheckCircle aria-hidden="true" className="w-4 h-4 shrink-0" style={{ marginTop: 2, color: brand.primaryColor }} />
+                  <p
+                    className="flex items-start gap-3 text-sm"
+                    style={{ color: textSoft, lineHeight: 1.5 }}
+                  >
+                    <Icons.CheckCircle
+                      aria-hidden="true"
+                      className="w-4 h-4 shrink-0"
+                      style={{ marginTop: 2, color: brand.primaryColor }}
+                    />
                     <span>Free to use. No plan to pick and no card details, ever.</span>
                   </p>
                 )}
@@ -259,18 +419,36 @@ export default function Screen() {
                   style={{
                     minHeight: 52,
                     borderRadius: brand.radius,
-                    border: 'none',
+                    border: "none",
                     backgroundImage: neonGradient,
                     color: onNeon,
-                    boxShadow: '0 12px 48px color-mix(in srgb, ' + brand.accentColor + ' 45%, transparent)',
-                    cursor: locked ? 'progress' : 'pointer',
+                    boxShadow:
+                      "0 12px 48px color-mix(in srgb, " + brand.accentColor + " 45%, transparent)",
+                    cursor: locked ? "progress" : "pointer",
                   }}
                 >
                   {submitting ? (
                     <>
-                      <svg className="su-spin w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity=".25" />
-                        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      <svg
+                        className="su-spin w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          opacity=".25"
+                        />
+                        <path
+                          d="M21 12a9 9 0 0 0-9-9"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                        />
                       </svg>
                       Creating account…
                     </>
@@ -294,11 +472,27 @@ export default function Screen() {
                   type="button"
                   data-wf="b-4-0-link"
                   className="su-link inline-flex items-center gap-2 font-semibold"
-                  onClick={() => navigate('login')}
-                  style={{ background: 'none', border: 'none', padding: '12px 0', color: textMain, cursor: 'pointer', minHeight: 44, borderRadius: 8 }}
+                  onClick={() => navigate("login")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "12px 0",
+                    color: textMain,
+                    cursor: "pointer",
+                    minHeight: 44,
+                    borderRadius: 8,
+                  }}
                 >
                   <span style={{ color: textSoft, fontWeight: 400 }}>Already have an account?</span>
-                  <span style={{ textDecoration: 'underline', textUnderlineOffset: 4, textDecorationColor: brand.accentColor }}>Log in</span>
+                  <span
+                    style={{
+                      textDecoration: "underline",
+                      textUnderlineOffset: 4,
+                      textDecorationColor: brand.accentColor,
+                    }}
+                  >
+                    Log in
+                  </span>
                   <Icons.ChevronRight aria-hidden="true" className="w-4 h-4" />
                 </button>
               </div>
@@ -306,17 +500,21 @@ export default function Screen() {
           </div>
 
           {/* Signature: the pulse list preview */}
-          <aside aria-hidden="true" className="hidden lg:flex col-span-6 items-center justify-center">
-            <div className="relative w-full" style={{ maxWidth: 440, transform: 'rotate(-2deg)' }}>
+          <aside
+            aria-hidden="true"
+            className="hidden lg:flex col-span-6 items-center justify-center"
+          >
+            <div className="relative w-full" style={{ maxWidth: 440, transform: "rotate(-2deg)" }}>
               <div
                 className="p-6"
                 style={{
                   backgroundColor: glass,
                   border: hairline,
                   borderRadius: brand.radius,
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  boxShadow: '0 32px 96px color-mix(in srgb, ' + brand.primaryColor + ' 28%, transparent)',
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  boxShadow:
+                    "0 32px 96px color-mix(in srgb, " + brand.primaryColor + " 28%, transparent)",
                 }}
               >
                 <svg viewBox="0 0 340 48" className="w-full" style={{ height: 48 }} fill="none">
@@ -326,25 +524,73 @@ export default function Screen() {
                       <stop offset="1" style={{ stopColor: brand.accentColor }} />
                     </linearGradient>
                   </defs>
-                  <path className="su-trace" d="M0 28 H96 L112 28 L126 6 L142 42 L156 20 L166 28 H340" stroke="url(#su-pulse-grad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    className="su-trace"
+                    d="M0 28 H96 L112 28 L126 6 L142 42 L156 20 L166 28 H340"
+                    stroke="url(#su-pulse-grad)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <div className="flex items-end justify-between mt-4 mb-4">
                   <div>
-                    <p className="text-sm" style={{ color: textSoft }}>Your list, newest first</p>
-                    <p className="font-extrabold" style={{ fontSize: 48, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>2 <span className="text-base font-semibold" style={{ color: textSoft }}>left to do</span></p>
+                    <p className="text-sm" style={{ color: textSoft }}>
+                      Your list, newest first
+                    </p>
+                    <p
+                      className="font-extrabold"
+                      style={{ fontSize: 48, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}
+                    >
+                      2{" "}
+                      <span className="text-base font-semibold" style={{ color: textSoft }}>
+                        left to do
+                      </span>
+                    </p>
                   </div>
-                  <span className="px-3 py-1 text-sm font-semibold" style={{ borderRadius: 999, border: '1px solid ' + brand.accentColor, color: textMain }}>Active</span>
+                  <span
+                    className="px-3 py-1 text-sm font-semibold"
+                    style={{
+                      borderRadius: 999,
+                      border: "1px solid " + brand.accentColor,
+                      color: textMain,
+                    }}
+                  >
+                    Active
+                  </span>
                 </div>
                 <ul className="flex flex-col gap-2">
                   {PREVIEW_TASKS.map((t) => (
-                    <li key={t.title} className="flex items-center gap-3 px-4 py-3 text-sm" style={{ borderRadius: brand.radius, border: hairline, backgroundColor: 'color-mix(in srgb, white 5%, transparent)' }}>
+                    <li
+                      key={t.title}
+                      className="flex items-center gap-3 px-4 py-3 text-sm"
+                      style={{
+                        borderRadius: brand.radius,
+                        border: hairline,
+                        backgroundColor: "color-mix(in srgb, white 5%, transparent)",
+                      }}
+                    >
                       <span
                         className="inline-flex items-center justify-center shrink-0"
-                        style={{ width: 20, height: 20, borderRadius: 999, border: '1px solid ' + (t.done ? brand.primaryColor : textSoft), backgroundColor: t.done ? brand.primaryColor : 'transparent', color: onNeon }}
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 999,
+                          border: "1px solid " + (t.done ? brand.primaryColor : textSoft),
+                          backgroundColor: t.done ? brand.primaryColor : "transparent",
+                          color: onNeon,
+                        }}
                       >
                         {t.done && <Icons.Check className="w-3 h-3" />}
                       </span>
-                      <span style={{ textDecoration: t.done ? 'line-through' : 'none', color: t.done ? textSoft : textMain }}>{t.title}</span>
+                      <span
+                        style={{
+                          textDecoration: t.done ? "line-through" : "none",
+                          color: t.done ? textSoft : textMain,
+                        }}
+                      >
+                        {t.title}
+                      </span>
                     </li>
                   ))}
                 </ul>

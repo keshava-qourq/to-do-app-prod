@@ -3,6 +3,11 @@ uvicorn[standard]==0.32.0
 sqlalchemy==2.0.35
 pydantic==2.9.2
 psycopg[binary]==3.2.3
+# The schema changes only through migrations (db-owning architecture rule).
+alembic==1.13.3
+# passlib 1.7.4 cannot talk to bcrypt 5 (its self-test hashes a >72-byte secret, which
+# bcrypt 5 rejects), so every hash would raise. Keep bcrypt on 4.0.x.
+bcrypt==4.0.1
 
 # Checks. The platform installs and runs this file before it reports that the
 # generated tests pass, so the test dependencies belong here rather than in a
@@ -13,3 +18,8 @@ pytest>=8.3
 # back to show on the development dashboard.
 pytest-cov>=5.0
 ruff>=0.6
+
+# BEGIN QUORQ ARCHITECTURE PACKAGES
+email-validator>=2.0
+passlib[bcrypt]>=1.7.4
+# END QUORQ ARCHITECTURE PACKAGES

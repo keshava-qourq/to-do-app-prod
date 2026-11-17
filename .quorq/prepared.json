@@ -1,0 +1,26 @@
+{
+  "key": {
+    "app_design_id": "e58ae2b3-587c-45c2-8514-295e305fcfd4",
+    "app_design_version": 1,
+    "architecture_document_id": "85e27afc-3a1a-4c69-b140-812ad1d0c170",
+    "architecture_version": 2
+  },
+  "outcome": "prepared",
+  "packages": [
+    {
+      "ecosystem": "pypi",
+      "installed_version": "1.7.4",
+      "name": "passlib[bcrypt]",
+      "status": "installed",
+      "version": ">=1.7.4"
+    },
+    {
+      "ecosystem": "pypi",
+      "installed_version": "2.4.0",
+      "name": "email-validator",
+      "status": "installed",
+      "version": ">=2.0"
+    }
+  ],
+  "prepared_by_run": "1437066c-0f09-43bb-bcbf-1131e6e1ed57"
+}
