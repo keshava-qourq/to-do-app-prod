@@ -18,7 +18,7 @@ A user can delete a task after confirming.
 A user can filter tasks by All, Active, or Completed.
 Tasks stay saved after logout or a page refresh.
 
-**Documentation version:** v6
+**Documentation version:** v7
 <!-- sdlc:auto:end overview -->
 
 ## Contents
@@ -30,7 +30,7 @@ Tasks stay saved after logout or a page refresh.
 | [Architecture](architecture/README.md) | 25 entries |
 | [Planning](planning/README.md) | 9 entries |
 | [Development](development/README.md) | 5 entries |
-| [Testing](testing/README.md) | 0 entries |
+| [Testing](testing/README.md) | 3 entries |
 | [Deployment](deployment/README.md) | 1 entry |
 | [Maintenance](maintenance/README.md) | 0 entries |
 | [Data model](architecture/data-model.md) | generated |
@@ -45,5 +45,5 @@ Tasks stay saved after logout or a page refresh.
 | [Runbook](deployment/runbook.md) | deployed |
 | [Release notes](deployment/release-notes.md) | 2 releases |
 | [Traceability matrix](traceability-matrix.md) | 20 requirements |
-| [Changelog](CHANGELOG.md) | 6 versions |
+| [Changelog](CHANGELOG.md) | 7 versions |
 <!-- sdlc:auto:end contents -->
